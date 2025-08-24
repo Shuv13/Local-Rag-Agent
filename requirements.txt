@@ -8,3 +8,5 @@ streamlit
 transformers
 torch
 accelerate
+beautifulsoup4
+langchain-community
