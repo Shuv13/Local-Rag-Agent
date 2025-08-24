@@ -6,7 +6,7 @@ import torch
 import logging
 
 class RAGChain:
-    def __init__(self, model_name: str = "microsoft/phi-2"):
+    def __init__(self, model_name: str = "google/gemma-3-1b-it"):
         self.model_name = model_name
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self._initialize_model_and_tokenizer()
@@ -18,7 +18,7 @@ class RAGChain:
         self.logger = logging.getLogger(__name__)
 
     def _initialize_model_and_tokenizer(self):
-        """Initialize model with proper device handling"""
+        """Initialize model with proper device handling and optimized dtype."""
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name,
@@ -29,11 +29,13 @@ class RAGChain:
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
 
-            # Load model with device_map="auto" but don't specify device here
+            # Set torch_dtype for performance; bfloat16 is good for CPUs
+            dtype = torch.float16 if self.device == "cuda" else torch.bfloat16
+
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
                 device_map="auto",
-                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+                torch_dtype=dtype,
                 trust_remote_code=True
             )
             
@@ -41,13 +43,12 @@ class RAGChain:
             raise RuntimeError(f"Failed to initialize model: {str(e)}")
 
     def _create_pipeline(self):
-        """Create pipeline without explicit device argument"""
+        """Create an optimized pipeline for faster inference."""
         return pipeline(
             "text-generation",
             model=self.model,
             tokenizer=self.tokenizer,
-            # Remove device argument since we're using device_map="auto"
-            max_new_tokens=256,
+            max_new_tokens=512,  # Increased for potentially longer answers
             temperature=0.7,
             top_p=0.9,
             do_sample=True,
@@ -55,7 +56,7 @@ class RAGChain:
         )
 
     def _create_prompt_template(self):
-        """Create efficient prompt template"""
+        """Create efficient prompt template."""
         return ChatPromptTemplate.from_template(
             """Answer the question based on the context. Be concise.
             Context: {context}
@@ -63,8 +64,11 @@ class RAGChain:
             Answer:"""
         )
 
-    def _truncate_context(self, context_text: str, max_tokens: int = 1024) -> str:
-        """Truncate context to fit model's window"""
+    def _truncate_context(self, context_text: str, max_tokens: int = 8192) -> str:
+        """
+        Truncate context to fit the model's window.
+        Gemma has a large context window, so we can use a larger value.
+        """
         try:
             inputs = self.tokenizer(
                 context_text, 
