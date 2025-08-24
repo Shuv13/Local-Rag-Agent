@@ -6,7 +6,7 @@ import torch
 import logging
 
 class RAGChain:
-    def __init__(self, model_name: str = "google/gemma-3-1b-it"):
+    def __init__(self, model_name: str = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
         self.model_name = model_name
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self._initialize_model_and_tokenizer()
@@ -64,10 +64,10 @@ class RAGChain:
             Answer:"""
         )
 
-    def _truncate_context(self, context_text: str, max_tokens: int = 8192) -> str:
+    def _truncate_context(self, context_text: str, max_tokens: int = 2048) -> str:
         """
         Truncate context to fit the model's window.
-        Gemma has a large context window, so we can use a larger value.
+        TinyLlama has a 2048 token context window.
         """
         try:
             inputs = self.tokenizer(
