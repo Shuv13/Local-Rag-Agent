@@ -7,7 +7,7 @@ import logging
 from utils.file_handling import save_uploaded_file
 
 # --- Constants and Configuration ---
-MODEL_NAME = "microsoft/phi-2"  # 2.7B params, fast
+MODEL_NAME = "google/gemma-3-1b-it"  # 1B params, fast, large context window
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
