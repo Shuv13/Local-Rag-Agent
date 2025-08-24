@@ -86,16 +86,17 @@ class RAGChain:
             return "No relevant context found."
             
         try:
-            context_text = "\n".join([doc.get("text", "")[:500] for doc in context])
-            context_text = self._truncate_context(context_text)
+            # Join document texts without premature truncation
+            context_text = "\n\n".join([doc.get("text", "") for doc in context])
+            truncated_context = self._truncate_context(context_text)
             
-            if not context_text.strip():
+            if not truncated_context.strip():
                 return "No usable context."
             
             chain = self.prompt_template | self.llm
             response = chain.invoke({
                 "question": question,
-                "context": context_text
+                "context": truncated_context
             })
             
             return str(response).strip() if response else "No response generated."
