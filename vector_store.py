@@ -2,6 +2,7 @@ import os
 import chromadb
 from chromadb.config import Settings
 from typing import List, Dict, Optional, Union
+import torch
 from sentence_transformers import SentenceTransformer
 import logging
 from chromadb.utils import embedding_functions
@@ -22,8 +23,12 @@ class VectorStore:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         
+        # Determine device for embedding model
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.logger.info(f"Using device: {self.device}")
+
         # Initialize embedding model
-        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device=self.device)
         
         # Initialize ChromaDB client
         try:
@@ -36,21 +41,16 @@ class VectorStore:
                 )
             )
             
-            # Try to get existing collection first
-            try:
-                self.collection = self.client.get_collection(name=self.collection_name)
-                self.logger.info(f"Loaded existing collection '{self.collection_name}'")
-            except ValueError:
-                # Create new collection if it doesn't exist
-                self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-                    model_name="all-MiniLM-L6-v2"
-                )
-                self.collection = self.client.create_collection(
-                    name=self.collection_name,
-                    embedding_function=self.embedding_function,
-                    metadata={"hnsw:space": "cosine"}
-                )
-                self.logger.info(f"Created new collection '{self.collection_name}'")
+            # Get or create collection
+            embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name="all-MiniLM-L6-v2"
+            )
+            self.collection = self.client.get_or_create_collection(
+                name=self.collection_name,
+                embedding_function=embedding_function,
+                metadata={"hnsw:space": "cosine"}
+            )
+            self.logger.info(f"Loaded or created collection '{self.collection_name}'")
                 
         except Exception as e:
             self.logger.error(f"Failed to initialize VectorStore: {str(e)}")
